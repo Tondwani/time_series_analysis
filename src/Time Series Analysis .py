@@ -1,5 +1,7 @@
 import logging
 import os
+import schedule
+import time
 import random
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -49,11 +51,12 @@ def __init__(self, repo_path, github_username, github_email):
     
     def _setup_logger(self):
         """Set up logging configuration"""
+        log_file = self.repo_path / 'analysis.log'
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
-                logging.FileHandler(self.repo_path / 'analysis.log'),
+                logging.FileHandler(log_file),
                 logging.StreamHandler()
             ]
         )
@@ -212,6 +215,7 @@ def __init__(self, repo_path, github_username, github_email):
         except Exception as e:
             self.logger.error(f"Error in commit_and_push: {str(e)}")
     
+    
     def run_analysis(self):
         """Run the complete analysis pipeline"""
         try:
@@ -244,6 +248,11 @@ def __init__(self, repo_path, github_username, github_email):
         except Exception as e:
             self.logger.error(f"Error in analysis pipeline: {str(e)}")
 
+
+    # Schedule job to run every 2 days
+    def job():
+        analyzer.run_analysis()
+    
 # Example usage
 if __name__ == "__main__":
     # Configuration
@@ -251,20 +260,26 @@ if __name__ == "__main__":
     GITHUB_USERNAME = "Tondwani"
     GITHUB_EMAIL = "craigmangaladzi@gmail.com"
     GITHUB_REPO_URL = "https://github.com/Tondwani/time_series_analysis.git"
-    
+
     # Initialize and run analysis
     analyzer = TimeSeriesGitHub(
         repo_path=REPO_PATH,
         github_username=GITHUB_USERNAME,
         github_email=GITHUB_EMAIL
     )
-    
+
     try:
         if 'origin' not in [remote.name for remote in analyzer.repo.remotes]:
             analyzer.repo.create_remote('origin', GITHUB_REPO_URL)
-        
-        # Run analysis
         analyzer.run_analysis()
-        
+
+        # Schedule the job
+        schedule.every(2).days.do(analyzer.run_analysis)
+
+        # Keep the script running
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+
     except Exception as e:
-        print(f"Error setting up repository: {str(e)}")
+        print(f"Error: {e}")
